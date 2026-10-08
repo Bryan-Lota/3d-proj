@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Construction Site — 3D Model</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    /* ─── Reset & Base ─── */
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{overflow:hidden;background:#0c0c0e;font-family:'Inter',sans-serif;color:#fff;-webkit-tap-highlight-color:transparent;}
+    canvas{display:block;position:fixed;top:0;left:0;touch-action:none;}
+
+    /* ─── Layout Variables ─── */
+    :root{
+      --sidebar-w:210px;
+      --top-h:52px;
+      --accent:#7dd3fc;
+      --accent-bg:rgba(125,211,252,0.12);
+      --panel-bg:rgba(12,12,16,0.94);
+      --border:rgba(255,255,255,0.08);
+    }
+
+    /* ─── Top Bar ─── */
+    #topbar{
+      position:fixed;top:0;left:0;right:0;height:calc(var(--top-h) + env(safe-area-inset-top, 0px));
+      padding-top:env(safe-area-inset-top, 0px);
+      background:var(--panel-bg);backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+      padding-left:max(14px, env(safe-area-inset-left, 0px));
+      padding-right:max(14px, env(safe-area-inset-right, 0px));
+      z-index:100;
+    }
+    .topbar-left{display:flex;align-items:center;gap:10px;}
+    #hamburger{
+      display:none;width:36px;height:36px;cursor:pointer;
+      border-radius:8px;border:1px solid transparent;background:none;
+      flex-direction:column;align-items:center;justify-content:center;gap:4px;
+      padding:0;transition:all .2s;
+    }
+    #hamburger:hover{background:rgba(255,255,255,0.06);border-color:var(--border);}
+    #hamburger span{
+      display:block;width:18px;height:2px;background:rgba(255,255,255,0.8);
+      border-radius:2px;transition:transform .22s cubic-bezier(.4,0,.2,1), opacity .2s;
+    }
+    #hamburger.open span:nth-child(1){transform:translateY(6px) rotate(45deg);}
+    #hamburger.open span:nth-child(2){opacity:0;}
+    #hamburger.open span:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+
+    .logo{font-size:15px;font-weight:700;letter-spacing:.5px;}
+    .logo em{color:var(--accent);font-style:normal;}
+    .model-tag{
+      background:rgba(255,255,255,0.07);border:1px solid var(--border);
+      border-radius:20px;padding:3px 10px;font-size:11px;color:rgba(255,255,255,0.45);
+    }
+    .topbar-right{display:flex;align-items:center;gap:8px;}
+    .top-pill{
+      background:rgba(255,255,255,0.06);border:1px solid var(--border);
+      border-radius:20px;padding:4px 10px;font-size:11px;color:rgba(255,255,255,0.4);
+      display:flex;align-items:center;gap:5px;
+    }
+    .dot-live{width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse-dot 1.8s infinite;}
+    @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+
+    /* ─── Reset Button ─── */
+    #reset-top-btn{
+      display:flex;align-items:center;gap:5px;
+      background:rgba(125,211,252,0.1);border:1px solid rgba(125,211,252,0.22);
+      border-radius:20px;padding:5px 11px;
+      color:#7dd3fc;font-size:11.5px;font-family:'Inter',sans-serif;font-weight:600;
+      cursor:pointer;transition:background .18s,transform .18s;
+      white-space:nowrap;
+    }
+    #reset-top-btn:hover{background:rgba(125,211,252,0.2);transform:scale(1.02);}
+    #reset-top-btn:active{transform:scale(.96);}
+    #reset-icon{display:inline-block;font-size:13px;}
+    #reset-icon.spin{animation:do-spin .75s cubic-bezier(.4,0,.2,1) forwards;}
+    @keyframes do-spin{0%{transform:rotate(0deg);}100%{transform:rotate(-360deg);}}
+
+    /* ─── Sidebar ─── */
+    #sidebar{
+      position:fixed;top:var(--top-h);left:0;bottom:0;width:var(--sidebar-w);
+      background:var(--panel-bg);backdrop-filter:blur(16px);
+      border-right:1px solid var(--border);
+      display:flex;flex-direction:column;padding:12px 10px 16px;gap:4px;
+      z-index:90;overflow-y:auto;transition:transform .3s cubic-bezier(.4,0,.2,1);
+      -webkit-overflow-scrolling:touch;
+    }
+    .sidebar-header-mobile{
+      display:none;align-items:center;justify-content:space-between;
+      padding:4px 4px 14px;border-bottom:1px solid var(--border);margin-bottom:8px;
+    }
+    .shm-title{font-size:14px;font-weight:700;letter-spacing:.3px;color:#fff;}
+    .shm-close{
+      width:30px;height:30px;border-radius:50%;cursor:pointer;
+      background:rgba(255,255,255,0.08);border:1px solid var(--border);
+      color:rgba(255,255,255,0.7);font-size:13px;display:flex;align-items:center;justify-content:center;
+      transition:all .15s;
+    }
+    .shm-close:hover{background:rgba(255,255,255,0.18);color:#fff;}
+
+    .sec-label{
+      font-size:9.5px;font-weight:600;letter-spacing:1.8px;color:rgba(255,255,255,0.25);
+      text-transform:uppercase;margin:10px 2px 5px;
+    }
+    .sec-label:first-child{margin-top:2px;}
+    .sbtn{
+      display:flex;align-items:center;gap:9px;width:100%;min-height:36px;
+      padding:8px 11px;border-radius:8px;cursor:pointer;
+      border:1px solid transparent;background:transparent;
+      color:rgba(255,255,255,0.55);font-size:12px;font-family:'Inter',sans-serif;
+      font-weight:500;transition:all .15s;text-align:left;
+    }
+    .sbtn:hover{background:rgba(255,255,255,0.07);color:#fff;}
+    .sbtn.active{background:var(--accent-bg);border-color:rgba(125,211,252,0.22);color:var(--accent);}
+    .sbtn .ico{font-size:13px;flex-shrink:0;}
+    .sbtn-reset{
+      background:rgba(125,211,252,0.08) !important;
+      border:1px solid rgba(125,211,252,0.2) !important;
+      color:#7dd3fc !important;
+      font-weight:600 !important;
+      margin-bottom:4px;
+    }
+    .sbtn-reset:hover{background:rgba(125,211,252,0.18) !important;}
+
+    .stat-box{margin-top:auto;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+    .stat-row{display:flex;justify-content:space-between;padding:3px 0;}
+    .sk{font-size:10.5px;color:rgba(255,255,255,0.3);}
+    .sv{font-size:10.5px;color:rgba(255,255,255,0.7);font-weight:600;}
+
+    /* ─── Main Canvas Area ─── */
+    #canvas-wrap{
+      position:fixed;top:var(--top-h);left:var(--sidebar-w);right:0;bottom:0;
+    }
+
+    /* ─── Desktop Bottom Bar ─── */
+    #bottombar{
+      position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+      background:rgba(12,12,16,0.88);backdrop-filter:blur(12px);
+      border:1px solid var(--border);border-radius:40px;
+      padding:7px 18px;font-size:10.5px;color:rgba(255,255,255,0.3);
+      white-space:nowrap;z-index:80;pointer-events:none;letter-spacing:.2px;
+    }
+    #bottombar span{margin:0 8px;}
+
+    /* ─── Mobile Quickbar (Dock) ─── */
+    #mobile-quickbar{display:none;}
+    .mq-btn{
+      background:rgba(255,255,255,0.07);border:1px solid transparent;
+      color:rgba(255,255,255,0.65);font-size:11px;font-weight:600;font-family:'Inter',sans-serif;
+      padding:7px 12px;border-radius:18px;cursor:pointer;white-space:nowrap;
+      display:inline-flex;align-items:center;gap:4px;transition:all .15s;flex-shrink:0;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mq-btn:active{transform:scale(.95);}
+    .mq-btn.active{
+      background:var(--accent-bg);border-color:rgba(125,211,252,0.28);color:var(--accent);
+    }
+    .mq-sep{width:1px;height:16px;background:var(--border);align-self:center;flex-shrink:0;}
+
+    /* ─── Annotation Markers ─── */
+    .ann-marker{
+      position:fixed;transform:translate(-50%,-50%);
+      cursor:pointer;z-index:70;pointer-events:all;
+      display:flex;align-items:center;justify-content:center;
+      touch-action:manipulation;
+    }
+    .ann-marker.hidden{display:none;}
+    .ann-ring-wrap{position:relative;width:28px;height:28px;flex-shrink:0;}
+    /* Expands touch target on mobile to 48px */
+    .ann-ring-wrap::before{content:'';position:absolute;inset:-10px;border-radius:50%;}
+    .ann-ring{
+      position:absolute;inset:0;border-radius:50%;
+      animation:ann-pulse 2.2s cubic-bezier(.455,.03,.515,.955) infinite;
+    }
+    @keyframes ann-pulse{
+      0%{transform:scale(.9);opacity:.9;}
+      60%{transform:scale(1.6);opacity:0;}
+      100%{transform:scale(.9);opacity:0;}
+    }
+    .ann-core{
+      position:absolute;inset:5px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;font-weight:700;color:#fff;
+      box-shadow:0 2px 10px rgba(0,0,0,.5);
+      transition:transform .15s, box-shadow .15s;
+    }
+    .ann-marker:hover .ann-core, .ann-marker.active .ann-core{
+      transform:scale(1.22);
+      box-shadow:0 0 14px var(--ac, #fff);
+    }
+    .ann-marker.active .ann-ring{border-width:3px !important;}
+    .ann-badge{
+      position:absolute;left:calc(100% + 6px);
+      background:rgba(12,12,16,0.9);backdrop-filter:blur(8px);
+      border:1px solid var(--border);border-radius:6px;
+      padding:3px 8px;font-size:10px;color:rgba(255,255,255,0.75);
+      white-space:nowrap;pointer-events:none;
+      opacity:0;transition:opacity .15s;
+    }
+    .ann-marker:hover .ann-badge{opacity:1;}
+
+    /* ─── Annotation Popup & Mobile Bottom Sheet ─── */
+    #ann-popup{
+      position:fixed;z-index:200;
+      background:rgba(14,14,20,0.97);backdrop-filter:blur(22px);
+      border:1px solid rgba(255,255,255,0.12);border-radius:18px;
+      padding:18px 20px 16px;width:280px;
+      box-shadow:0 20px 60px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,0.05);
+      transition:opacity .22s ease,transform .22s ease;
+      transform-origin:top left;
+    }
+    #ann-popup.hidden{opacity:0;pointer-events:none;transform:scale(.92);}
+    #ann-popup:not(.hidden){opacity:1;transform:scale(1);}
+    .sheet-handle{display:none;}
+    .popup-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:10px;}
+    .popup-icon-wrap{
+      width:38px;height:38px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;font-size:20px;
+      flex-shrink:0;
+    }
+    .popup-close{
+      width:28px;height:28px;border-radius:50%;cursor:pointer;
+      background:rgba(255,255,255,0.08);border:none;color:rgba(255,255,255,.6);
+      font-size:13px;display:flex;align-items:center;justify-content:center;
+      transition:background .15s;flex-shrink:0;
+    }
+    .popup-close:hover{background:rgba(255,255,255,.18);color:#fff;}
+    .popup-num{
+      display:inline-flex;align-items:center;justify-content:center;
+      width:18px;height:18px;border-radius:50%;font-size:9.5px;font-weight:700;
+      margin-right:6px;flex-shrink:0;
+    }
+    #popup-title{font-size:14px;font-weight:700;color:#fff;margin:6px 0 4px;line-height:1.3;}
+    #popup-desc{font-size:11.5px;color:rgba(255,255,255,.6);line-height:1.6;}
+    .popup-tag{
+      display:inline-block;margin-top:10px;
+      padding:3px 9px;border-radius:20px;font-size:10px;font-weight:600;
+    }
+    .popup-nav{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-top:14px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.07);
+    }
+    .pnav-btn{
+      background:rgba(255,255,255,0.08);border:1px solid var(--border);
+      color:rgba(255,255,255,0.75);font-size:11px;font-weight:600;font-family:'Inter',sans-serif;
+      padding:6px 12px;border-radius:14px;cursor:pointer;transition:all .15s;
+    }
+    .pnav-btn:hover{background:rgba(255,255,255,0.16);color:#fff;}
+    .pnav-btn:active{transform:scale(.95);}
+    .pnav-count{font-size:10.5px;color:rgba(255,255,255,0.4);font-weight:500;}
+
+    /* connector line from popup to dot on desktop */
+    #popup-line{
+      position:fixed;pointer-events:none;z-index:195;
+      transition:all .2s;
+    }
+    #popup-line.hidden{display:none;}
+
+    /* ─── Mobile overlay backdrop ─── */
+    #sidebar-backdrop{
+      display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:85;
+      backdrop-filter:blur(4px);
+    }
+    #sidebar-backdrop.show{display:block;}
+
+    /* ─── Help tooltip ─── */
+    #help-tip{
+      position:fixed;bottom:55px;right:16px;
+      background:rgba(12,12,16,0.9);border:1px solid var(--border);
+      border-radius:10px;padding:8px 12px;font-size:10.5px;color:rgba(255,255,255,.45);
+      z-index:80;pointer-events:none;line-height:1.6;
+    }
+
+    /* ─── Responsive Media Queries ─── */
+    @media(max-width:768px){
+      :root{--sidebar-w:0px;}
+      #topbar{
+        height:calc(var(--top-h) + env(safe-area-inset-top, 0px));
+        padding:env(safe-area-inset-top, 0px) 10px 0;
+      }
+      #sidebar{
+        top:0;width:min(300px, 86vw);transform:translateX(-100%);
+        border-right:none;border-radius:0 20px 20px 0;
+        box-shadow:16px 0 50px rgba(0,0,0,0.75);
+        padding:calc(16px + env(safe-area-inset-top, 0px)) 14px calc(24px + env(safe-area-inset-bottom, 0px));
+        z-index:300;
+      }
+      #sidebar.open{transform:translateX(0);}
+      .sidebar-header-mobile{display:flex;}
+      #canvas-wrap{left:0;top:var(--top-h);}
+      #hamburger{display:flex;}
+      .model-tag{display:none;}
+      #help-tip{display:none;}
+      #bottombar{display:none;}
+
+      /* Top bar items */
+      .top-pill.faces-pill{display:none;}
+      .reset-txt{font-size:11px;}
+
+      /* Mobile Pins: larger touch area, no overlapping text badges */
+      .ann-ring-wrap{width:32px;height:32px;}
+      .ann-core{inset:4px;font-size:12px;}
+      .ann-badge{display:none !important;}
+
+      /* Mobile Annotation Bottom Sheet */
+      #ann-popup{
+        left:12px;right:12px;
+        bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+        top:auto !important;
+        width:auto;max-width:480px;margin:0 auto;
+        border-radius:20px;
+        padding:16px 18px 14px;
+        box-shadow:0 16px 50px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.12);
+        transform-origin:bottom center;
+        transition:transform .28s cubic-bezier(.2,0,0,1), opacity .28s ease;
+        max-height:50vh;overflow-y:auto;
+        z-index:220;
+      }
+      #ann-popup.hidden{
+        transform:translateY(115%);opacity:0;pointer-events:none;
+      }
+      #ann-popup:not(.hidden){
+        transform:translateY(0);opacity:1;pointer-events:all;
+      }
+      .sheet-handle{
+        display:block;width:36px;height:4px;border-radius:2px;
+        background:rgba(255,255,255,0.22);margin:0 auto 12px;
+      }
+      #popup-line{display:none !important;}
+
+      /* Mobile Quickbar */
+      #mobile-quickbar{
+        display:flex;
+        position:fixed;
+        bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+        left:50%;transform:translateX(-50%);
+        background:rgba(14,14,20,0.92);backdrop-filter:blur(18px);
+        border:1px solid rgba(255,255,255,0.12);
+        border-radius:30px;
+        padding:5px 8px;gap:5px;
+        z-index:80;
+        box-shadow:0 10px 36px rgba(0,0,0,0.7);
+        max-width:calc(100vw - 20px);
+        overflow-x:auto;-webkit-overflow-scrolling:touch;
+        scrollbar-width:none;
+        transition:transform .25s ease, opacity .25s ease;
+      }
+      #mobile-quickbar::-webkit-scrollbar{display:none;}
+      body.popup-active #mobile-quickbar{
+        transform:translate(-50%, 80px);
+        opacity:0;pointer-events:none;
+      }
+    }
+
+    @media(min-width:769px) and (max-width:1024px){
+      :root{--sidebar-w:180px;}
+    }
+    @media(min-width:1200px){
+      :root{--sidebar-w:220px;}
+    }
+
+    /* Extra compact for narrow phones (<380px) */
+    @media(max-width:380px){
+      .reset-txt{display:none;}
+      .live-txt{display:none;}
+      #topbar{padding-left:8px;padding-right:8px;}
+      .mq-btn{padding:5px 8px;font-size:10.5px;}
+    }
+
+    /* Landscape mode on phones */
+    @media(max-height:500px) and (orientation:landscape){
+      :root{--top-h:44px;}
+      #topbar{height:var(--top-h);padding-top:0;}
+      #ann-popup{max-height:68vh;padding:12px 14px 10px;}
+      #mobile-quickbar{bottom:8px;padding:3px 6px;}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── TOP BAR ─── -->
+<div id="topbar">
+  <div class="topbar-left">
+    <button id="hamburger" onclick="toggleSidebar()" aria-label="Toggle navigation menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo">3D<em>SITE</em></div>
+    <div class="model-tag">Unfinished Building Site</div>
+  </div>
+  <div class="topbar-right">
+    <button id="reset-top-btn" onclick="resetCamera()" title="Reset to default isometric view">
+      <span id="reset-icon">↺</span><span class="reset-txt"> Reset</span>
+    </button>
+    <div class="top-pill live-pill"><span class="dot-live"></span><span class="live-txt">Live</span></div>
+    <div class="top-pill faces-pill" id="stat-faces-top">— faces</div>
+  </div>
+</div>
+
+<!-- ─── SIDEBAR ─── -->
+<div id="sidebar">
+  <div class="sidebar-header-mobile">
+    <div class="shm-title">Site Inspector</div>
+    <button class="shm-close" onclick="closeSidebar()" aria-label="Close menu">✕</button>
+  </div>
+
+  <div class="sec-label">📸 Views</div>
+  <button class="sbtn sbtn-reset" onclick="resetCamera()"><span class="ico">↺</span>Reset View</button>
+  <button class="sbtn active" id="vbtn-iso"   onclick="flyTo([65,30,80],[0,8,0],'vbtn-iso')"><span class="ico">⬡</span>Isometric</button>
+  <button class="sbtn"        id="vbtn-front" onclick="flyTo([0,12,90],[0,8,0],'vbtn-front')"><span class="ico">⬛</span>Front</button>
+  <button class="sbtn"        id="vbtn-side"  onclick="flyTo([95,15,0],[0,8,0],'vbtn-side')"><span class="ico">⬛</span>Side</button>
+  <button class="sbtn"        id="vbtn-top"   onclick="flyTo([0,115,1],[0,0,0],'vbtn-top')"><span class="ico">⊙</span>Top</button>
+  <button class="sbtn"        id="vbtn-rear"  onclick="flyTo([0,12,-90],[0,8,0],'vbtn-rear')"><span class="ico">⬛</span>Rear</button>
+
+  <div class="sec-label">🎨 Display Mode</div>
+  <button class="sbtn active" id="dbtn-solid"     onclick="setDisplay('solid')"    ><span class="ico">🟫</span>Solid (Clay)</button>
+  <button class="sbtn"        id="dbtn-wireframe"  onclick="setDisplay('wireframe')"><span class="ico">⬡</span>Wireframe</button>
+  <button class="sbtn"        id="dbtn-xray"       onclick="setDisplay('xray')"    ><span class="ico">💠</span>X-Ray</button>
+
+  <div class="sec-label">👁 Visibility</div>
+  <button class="sbtn active" id="tbtn-scaffold" onclick="toggleGroup('scaffold')"><span class="ico">🪵</span>Scaffolding</button>
+  <button class="sbtn active" id="tbtn-roof"     onclick="toggleGroup('roof')"    ><span class="ico">🏠</span>Roof</button>
+  <button class="sbtn active" id="tbtn-annot"    onclick="toggleAnnotations()"   ><span class="ico">📍</span>Annotations</button>
+
+  <div class="sec-label">📐 Annotations</div>
+  <button class="sbtn" onclick="focusAnnotation(0)"><span class="ico" style="color:#f97316">●</span>Gabled Roof</button>
+  <button class="sbtn" onclick="focusAnnotation(1)"><span class="ico" style="color:#22c55e">●</span>Scaffolding</button>
+  <button class="sbtn" onclick="focusAnnotation(2)"><span class="ico" style="color:#3b82f6">●</span>Columns</button>
+  <button class="sbtn" onclick="focusAnnotation(3)"><span class="ico" style="color:#a855f7">●</span>Windows</button>
+  <button class="sbtn" onclick="focusAnnotation(4)"><span class="ico" style="color:#14b8a6">●</span>Floor Slab</button>
+  <button class="sbtn" onclick="focusAnnotation(5)"><span class="ico" style="color:#f59e0b">●</span>Foundation</button>
+  <button class="sbtn" onclick="focusAnnotation(6)"><span class="ico" style="color:#ec4899">●</span>Gable Wall</button>
+
+  <div class="stat-box">
+    <div class="sec-label" style="margin:0 0 6px;">Mesh Info</div>
+    <div class="stat-row"><span class="sk">Topology</span><span class="sv">Triangle</span></div>
+    <div class="stat-row"><span class="sk">Faces</span><span class="sv" id="stat-f">—</span></div>
+    <div class="stat-row"><span class="sk">Vertices</span><span class="sv" id="stat-v">—</span></div>
+  </div>
+</div>
+
+<div id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+<!-- ─── CANVAS WRAP ─── -->
+<div id="canvas-wrap"></div>
+
+<!-- ─── ANNOTATION MARKERS (HTML overlays) ─── -->
+<div id="annotations-container"></div>
+
+<!-- ─── ANNOTATION POPUP (Desktop Card & Mobile Bottom Sheet) ─── -->
+<svg id="popup-line" class="hidden" width="100" height="100" style="overflow:visible;">
+  <line id="popup-line-el" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" stroke-dasharray="4,3"/>
+</svg>
+
+<div id="ann-popup" class="hidden">
+  <div class="sheet-handle"></div>
+  <div class="popup-header">
+    <div class="popup-icon-wrap" id="popup-icon-wrap">🏠</div>
+    <button class="popup-close" onclick="closePopup()" aria-label="Close information">✕</button>
+  </div>
+  <div id="popup-title">Title</div>
+  <div id="popup-desc">Description</div>
+  <div class="popup-tag" id="popup-tag">Tag</div>
+  <div class="popup-nav">
+    <button class="pnav-btn" onclick="prevAnnotation(event)">‹ Prev Point</button>
+    <span class="pnav-count" id="popup-nav-count">1 of 7</span>
+    <button class="pnav-btn" onclick="nextAnnotation(event)">Next Point ›</button>
+  </div>
+</div>
+
+<!-- ─── DESKTOP BOTTOM BAR ─── -->
+<div id="bottombar">
+  <span>↔ Drag: Rotate</span>
+  <span>🖱 Right: Pan</span>
+  <span>± Scroll: Zoom</span>
+</div>
+
+<!-- ─── MOBILE QUICKBAR DOCK (Phones) ─── -->
+<div id="mobile-quickbar">
+  <button class="mq-btn mq-btn-view active" id="mq-iso"   onclick="flyTo([65,30,80],[0,8,0],'vbtn-iso')">⬡ Iso</button>
+  <button class="mq-btn mq-btn-view"        id="mq-front" onclick="flyTo([0,12,90],[0,8,0],'vbtn-front')">Front</button>
+  <button class="mq-btn mq-btn-view"        id="mq-side"  onclick="flyTo([95,15,0],[0,8,0],'vbtn-side')">Side</button>
+  <button class="mq-btn mq-btn-view"        id="mq-top"   onclick="flyTo([0,115,1],[0,0,0],'vbtn-top')">Top</button>
+  <div class="mq-sep"></div>
+  <button class="mq-btn active" id="mq-scaffold" onclick="toggleGroup('scaffold')" title="Toggle Scaffolding">🪵 Scaff</button>
+  <button class="mq-btn"        id="mq-mode"     onclick="cycleDisplayMode()" title="Switch Solid / Wire / X-Ray">🟫 Solid</button>
+</div>
+
+<!-- ─── HELP TIP ─── -->
+<div id="help-tip">📍 Click glowing pins for info</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  ORBIT CONTROLS (with touch support)
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  THREE.OrbitControls=function(cam,dom){
+    var s=this;
+    this.enabled=true;this.enableDamping=true;this.dampingFactor=0.07;
+    this.minDistance=5;this.maxDistance=350;this.maxPolarAngle=Math.PI/2-0.02;
+    var sp=new THREE.Spherical(),sd=new THREE.Spherical(),sc=1,po=new THREE.Vector3();
+    var rs=new THREE.Vector2(),re=new THREE.Vector2();
+    var ps=new THREE.Vector2(),pe=new THREE.Vector2(),pd=new THREE.Vector2();
+    var tgt=new THREE.Vector3();this.target=tgt;
+    var plv=new THREE.Vector3(),puv=new THREE.Vector3();
+    function pL(d,m){plv.setFromMatrixColumn(m,0);plv.multiplyScalar(-d);po.add(plv);}
+    function pU(d,m){puv.setFromMatrixColumn(m,1);puv.multiplyScalar(d);po.add(puv);}
+    function doPan(dx,dy){var l=cam.position.clone().sub(tgt).length()*Math.tan(cam.fov/2*Math.PI/180);pL(2*dx*l/dom.clientHeight,cam.matrix);pU(2*dy*l/dom.clientHeight,cam.matrix);}
+    this.update=(function(){
+      var off=new THREE.Vector3(),q=new THREE.Quaternion().setFromUnitVectors(cam.up,new THREE.Vector3(0,1,0)),qi=q.clone().inverse();
+      return function(){
+        off.copy(cam.position).sub(tgt).applyQuaternion(q);
+        sp.setFromVector3(off);
+        sp.theta+=sd.theta*(s.enableDamping?s.dampingFactor:1);
+        sp.phi+=sd.phi*(s.enableDamping?s.dampingFactor:1);
+        sp.phi=Math.max(0.04,Math.min(s.maxPolarAngle,sp.phi));sp.makeSafe();
+        sp.radius=Math.max(s.minDistance,Math.min(s.maxDistance,sp.radius*sc));
+        tgt.add(po);off.setFromSpherical(sp).applyQuaternion(qi);
+        cam.position.copy(tgt).add(off);cam.lookAt(tgt);
+        if(s.enableDamping){sd.theta*=1-s.dampingFactor;sd.phi*=1-s.dampingFactor;po.multiplyScalar(1-s.dampingFactor);}
+        else{sd.set(0,0,0);po.set(0,0,0);}sc=1;
+      };
+    })();
+    // Mouse
+    var btnDown=-1;
+    function mdn(e){
+      if(!s.enabled)return;e.preventDefault();btnDown=e.button;
+      if(e.button===0)rs.set(e.clientX,e.clientY);
+      else if(e.button===2)ps.set(e.clientX,e.clientY);
+      document.addEventListener('mousemove',mmv);document.addEventListener('mouseup',mup);
+    }
+    function mmv(e){
+      if(btnDown===0){re.set(e.clientX,e.clientY);var d=re.clone().sub(rs).multiplyScalar(0.005);sd.theta-=d.x;sd.phi-=d.y;rs.copy(re);}
+      else if(btnDown===2){pe.set(e.clientX,e.clientY);pd.subVectors(pe,ps);doPan(pd.x,pd.y);ps.copy(pe);}
+    }
+    function mup(){document.removeEventListener('mousemove',mmv);document.removeEventListener('mouseup',mup);btnDown=-1;}
+    function whl(e){e.preventDefault();sc*=e.deltaY<0?1/0.92:0.92;}
+    dom.addEventListener('mousedown',mdn);
+    dom.addEventListener('wheel',whl,{passive:false});
+    dom.addEventListener('contextmenu',e=>e.preventDefault());
+    // Touch
+    var lastPinchDist=0;
+    function tdist(t){var dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.sqrt(dx*dx+dy*dy);}
+    function tstart(e){
+      e.preventDefault();
+      var arr=Array.from(e.touches);
+      if(arr.length===1){
+        rs.set(arr[0].clientX,arr[0].clientY);
+        sd.theta=0;sd.phi=0;po.set(0,0,0);
+      } else if(arr.length===2){
+        lastPinchDist=tdist(arr);
+        ps.set((arr[0].clientX+arr[1].clientX)/2,(arr[0].clientY+arr[1].clientY)/2);
+      }
+    }
+    function tmove(e){
+      e.preventDefault();
+      var arr=Array.from(e.touches);
+      if(arr.length===1){
+        re.set(arr[0].clientX,arr[0].clientY);
+        var d=re.clone().sub(rs).multiplyScalar(0.0065);
+        sd.theta-=d.x;sd.phi-=d.y;
+        rs.copy(re);
+      }else if(arr.length===2){
+        var dist=tdist(arr);
+        if(dist>6 && lastPinchDist>6){
+          var ratio=lastPinchDist/dist;
+          sc*=Math.max(0.7,Math.min(1.4,ratio));
+          lastPinchDist=dist;
+        }
+        pe.set((arr[0].clientX+arr[1].clientX)/2,(arr[0].clientY+arr[1].clientY)/2);
+        pd.subVectors(pe,ps);
+        doPan(pd.x*0.85,pd.y*0.85);
+        ps.copy(pe);
+      }
+    }
+    function tend(e){
+      var arr=Array.from(e.touches);
+      if(arr.length===1){
+        rs.set(arr[0].clientX,arr[0].clientY);
+      }else if(arr.length===2){
+        lastPinchDist=tdist(arr);
+        ps.set((arr[0].clientX+arr[1].clientX)/2,(arr[0].clientY+arr[1].clientY)/2);
+      }
+    }
+    dom.addEventListener('touchstart',tstart,{passive:false});
+    dom.addEventListener('touchmove',tmove,{passive:false});
+    dom.addEventListener('touchend',tend,{passive:false});
+    dom.addEventListener('touchcancel',tend,{passive:false});
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════════════
+//  SCENE SETUP
+// ═══════════════════════════════════════════════════════════════════
+const getTopH=()=>document.getElementById('topbar')?.offsetHeight||52;
+const getSideW=()=>window.innerWidth>768?(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'))||210):0;
+const W=()=>window.innerWidth-getSideW();
+const H=()=>window.innerHeight-getTopH();
+
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0c0c0e);
+scene.fog=new THREE.FogExp2(0x0c0c0e,0.0035);
+
+const camera=new THREE.PerspectiveCamera(46,W()/H(),0.1,800);
+camera.position.set(65,30,80);
+
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.setSize(W(),H());
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+renderer.domElement.style.position='fixed';
+renderer.domElement.style.top=getTopH()+'px';
+renderer.domElement.style.left=getSideW()+'px';
+renderer.domElement.style.touchAction='none';
+document.getElementById('canvas-wrap').appendChild(renderer.domElement);
+
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.set(0,7,0);controls.enableDamping=true;
+
+// ─── Lighting (clay look) ─────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
+scene.add(new THREE.HemisphereLight(0x8899bb,0x221100,0.4));
+const sun=new THREE.DirectionalLight(0xfff8e8,1.7);
+sun.position.set(55,90,50);sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-100;sun.shadow.camera.right=100;
+sun.shadow.camera.top=100;sun.shadow.camera.bottom=-100;
+sun.shadow.bias=-0.0008;scene.add(sun);
+const rim=new THREE.DirectionalLight(0xaaccff,0.7);rim.position.set(-50,35,-60);scene.add(rim);
+const fill=new THREE.DirectionalLight(0xffffff,0.25);fill.position.set(0,25,80);scene.add(fill);
+
+// ─── Materials ────────────────────────────────────────────────────
+const M={
+  wall:  new THREE.MeshStandardMaterial({color:0xe0dbd2,roughness:0.86}),
+  col:   new THREE.MeshStandardMaterial({color:0xeae5dc,roughness:0.8}),
+  roof:  new THREE.MeshStandardMaterial({color:0x352018,roughness:0.75,metalness:0.08}),
+  glass: new THREE.MeshStandardMaterial({color:0x7090a8,roughness:0.08,metalness:0.12,transparent:true,opacity:0.3}),
+  slab:  new THREE.MeshStandardMaterial({color:0xbab4a8,roughness:0.88}),
+  scaf:  new THREE.MeshStandardMaterial({color:0xc4ba9a,roughness:0.94}),
+  gnd:   new THREE.MeshStandardMaterial({color:0x1a1614,roughness:1.0}),
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────
+function mkBox(w,h,d,mat,x,y,z,rx=0,rz=0){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat.clone());
+  m.position.set(x,y,z);if(rx||rz)m.rotation.set(rx,0,rz);
+  m.castShadow=true;m.receiveShadow=true;return m;
+}
+function mkCyl(rt,rb,h,seg,mat,x,y,z,rx=0,rz=0){
+  const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat.clone());
+  m.position.set(x,y,z);if(rx||rz)m.rotation.set(rx,0,rz);
+  m.castShadow=true;m.receiveShadow=true;return m;
+}
+
+// ─── Groups ───────────────────────────────────────────────────────
+const bGroup=new THREE.Group(); // building
+const rGroup=new THREE.Group(); // roof
+const sGroup=new THREE.Group(); // scaffold
+let allBuildingMeshes=[];
+
+function addB(m){bGroup.add(m);allBuildingMeshes.push(m);return m;}
+function addR(m){rGroup.add(m);allBuildingMeshes.push(m);return m;}
+function addS(m){sGroup.add(m);allBuildingMeshes.push(m);return m;}
+
+// Store a snapshot of each material's original properties so we can
+// restore them perfectly after wireframe / x-ray modes.
+const matSnapshots=new WeakMap();
+function snapshotMaterials(){
+  allBuildingMeshes.forEach(m=>{
+    const mat=m.material;
+    matSnapshots.set(mat,{
+      wireframe:  mat.wireframe,
+      transparent:mat.transparent,
+      opacity:    mat.opacity,
+      depthWrite: mat.depthWrite,
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  GROUND
+// ═══════════════════════════════════════════════════════════════════
+const gndM=new THREE.Mesh(new THREE.PlaneGeometry(320,320,2,2),M.gnd.clone());
+gndM.rotation.x=-Math.PI/2;gndM.receiveShadow=true;scene.add(gndM);
+
+// ═══════════════════════════════════════════════════════════════════
+//  BUILDING
+// ═══════════════════════════════════════════════════════════════════
+const BL=70,BD=10,SH=3.5,WT=0.38;
+const COLS=14,bayW=BL/(COLS-1);
+
+// End walls
+[-BL/2,BL/2].forEach(x=>{
+  addB(mkBox(WT,SH*2,BD,M.wall,x,SH,0));
+  addB(mkBox(WT,2.8,BD,M.wall,x,SH*2+1.4,0));
+});
+
+// Long wall bays
+for(let st=0;st<2;st++){
+  const bY=st*SH,belH=st===0?0.9:0.65,winH=1.1,winW=bayW*0.54;
+  const abvH=SH-belH-winH;
+  for(let i=0;i<COLS-1;i++){
+    const bx=-BL/2+bayW*i+bayW/2;
+    [-BD/2,BD/2].forEach(bz=>{
+      addB(mkBox(bayW-0.15,belH,WT,M.wall,bx,bY+belH/2,bz));
+      addB(mkBox(winW,winH,WT*0.4,M.glass,bx,bY+belH+winH/2,bz));
+      addB(mkBox(bayW-0.15,abvH,WT,M.wall,bx,bY+belH+winH+abvH/2,bz));
+    });
+  }
+}
+
+// Columns
+for(let i=0;i<COLS;i++){
+  const cx=-BL/2+i*bayW;
+  addB(mkBox(WT,SH*2,WT,M.col,cx,SH,-BD/2));
+  addB(mkBox(WT,SH*2,WT,M.col,cx,SH,BD/2));
+}
+
+// Floor slabs
+addB(mkBox(BL,0.28,BD,M.slab,0,0.14,0));
+addB(mkBox(BL,0.32,BD,M.slab,0,SH,0));
+
+// Interior wall panels
+for(let i=0;i<COLS-1;i++){
+  addB(mkBox(bayW*0.65,SH*2-0.4,WT*0.7,M.wall,-BL/2+bayW*i+bayW/2,SH,BD/2-0.9));
+}
+
+scene.add(bGroup);
+
+// ─── Roof ─────────────────────────────────────────────────────────
+const riseH=3.2,halfD=BD/2+0.9,rLen=BL+1.8;
+const slopeL=Math.sqrt(halfD**2+riseH**2),ang=Math.atan2(riseH,halfD);
+[-1,1].forEach(side=>{
+  const sl=new THREE.Mesh(new THREE.BoxGeometry(rLen,0.22,slopeL),M.roof.clone());
+  sl.position.set(0,SH*2+riseH/2,side*halfD/2);sl.rotation.x=side*ang;
+  sl.castShadow=true;addR(sl);
+});
+addR(mkBox(rLen,0.35,0.55,M.roof,0,SH*2+riseH,0));
+[-halfD-0.1,halfD+0.1].forEach(z=>addR(mkBox(rLen,0.2,0.38,M.roof,0,SH*2,z)));
+scene.add(rGroup);
+
+// ─── Scaffolding (dense) ──────────────────────────────────────────
+const sfH=SH*2+2.4,R=0.055;
+for(let i=0;i<=COLS*2;i++){
+  const px=-BL/2+i*(BL/(COLS*2)),pz=-BD/2-0.7;
+  addS(mkCyl(R,R,sfH+1.2,5,M.scaf,px,sfH/2,pz));
+  const lx=px+0.2,lz=pz-0.2;
+  addS(mkCyl(R*.8,R*.8,sfH*.82,4,M.scaf,lx,sfH*.41,lz,0.08,0.09));
+}
+for(let h=1.0;h<sfH;h+=SH*0.86){
+  addS(mkBox(BL+2,R*2,R*2,M.scaf,0,h,-BD/2-0.7));
+  addS(mkBox(BL+2,R*1.5,R*1.5,M.scaf,0,h-0.22,-BD/2-0.4));
+}
+for(let i=0;i<COLS-1;i++){
+  const x1=-BL/2+i*bayW,x2=x1+bayW,mid=(x1+x2)/2;
+  const dL=Math.sqrt(bayW**2+(sfH*.52)**2),a=Math.atan2(sfH*.52,bayW)*(i%2?-1:1);
+  addS(mkBox(dL,R*1.4,R*1.4,M.scaf,mid,sfH*.43,-BD/2-0.7,0,a));
+}
+for(let j=0;j<=4;j++){
+  const pz=-BD/2+j*(BD/4);
+  addS(mkCyl(R,R,sfH,4,M.scaf,-BL/2-0.7,sfH/2,pz));
+  addS(mkCyl(R,R,sfH,4,M.scaf, BL/2+0.7,sfH/2,pz));
+}
+for(let h=1.0;h<sfH;h+=SH*.9){
+  addS(mkBox(R*2,R*1.6,BD+1.5,M.scaf,-BL/2-0.7,h,0));
+  addS(mkBox(R*2,R*1.6,BD+1.5,M.scaf, BL/2+0.7,h,0));
+  addS(mkBox(BL+2,R*1.6,R*1.6,M.scaf,0,h,BD/2+0.6));
+}
+for(let i=0;i<=COLS*2;i+=2){
+  const px=-BL/2+i*(BL/(COLS*2));
+  addS(mkCyl(R*.6,R*.6,2.2+Math.random()*1.6,4,M.scaf,px,sfH+1.4,-BD/2-0.7));
+}
+for(let h=SH;h<SH*2+.5;h+=SH)
+  for(let i=0;i<COLS-1;i++)
+    addS(mkBox(bayW-.05,.04,.28,M.scaf,-BL/2+bayW*i+bayW/2,h+.1,-BD/2-.7));
+scene.add(sGroup);
+
+// ─── Mesh stats ───────────────────────────────────────────────────
+let totF=0,totV=0;
+setTimeout(()=>{
+  allBuildingMeshes.forEach(m=>{
+    if(!m.geometry)return;
+    const g=m.geometry;
+    totF+=g.index?g.index.count/3:g.attributes.position.count/3;
+    totV+=g.attributes.position.count;
+  });
+  const fStr=Math.round(totF).toLocaleString();
+  const vStr=Math.round(totV).toLocaleString();
+  document.getElementById('stat-f').textContent=fStr;
+  document.getElementById('stat-v').textContent=vStr;
+  document.getElementById('stat-faces-top').textContent=fStr+' faces';
+},200);
+
+// Snapshot original material state now that all meshes are built
+snapshotMaterials();
+
+// ═══════════════════════════════════════════════════════════════════
+//  ANNOTATIONS
+// ═══════════════════════════════════════════════════════════════════
+const ANNS=[
+  {
+    pos:new THREE.Vector3(0,SH*2+riseH+0.4,0),
+    title:'Gabled Roof Structure',
+    desc:'Dark corrugated metal roof with a central ridge beam. The gabled (A-shaped) profile sheds rainwater efficiently. The roof spans the full 70m length of the building.',
+    icon:'🏠',color:'#f97316',tag:'Structural',num:1,
+    camPos:[20,25,50],camTgt:[0,12,0]
+  },
+  {
+    pos:new THREE.Vector3(-15,sfH*0.55,-BD/2-1.0),
+    title:'Bamboo Scaffolding',
+    desc:'Dense bamboo pole scaffolding surrounds the building on all sides. Vertical poles, horizontal ledgers, and diagonal cross-bracing provide safe working platforms at each storey level.',
+    icon:'🪵',color:'#22c55e',tag:'Temporary Works',num:2,
+    camPos:[-25,14,-30],camTgt:[-15,8,0]
+  },
+  {
+    pos:new THREE.Vector3(bayW*2,SH*0.5,-BD/2),
+    title:'Reinforced Concrete Columns',
+    desc:'Structural columns at each of the 14 bay divisions provide the primary vertical load path. They support both the first floor slab and the roof above.',
+    icon:'🏛️',color:'#3b82f6',tag:'Structure',num:3,
+    camPos:[15,8,25],camTgt:[bayW*2,3,-BD/2]
+  },
+  {
+    pos:new THREE.Vector3(10,SH+1.5,-BD/2),
+    title:'Window Openings',
+    desc:'Open rectangular window frames across both storeys. Currently without glazing or louvres — these will be fitted during the finishing stage.',
+    icon:'🪟',color:'#a855f7',tag:'Envelope',num:4,
+    camPos:[18,12,28],camTgt:[10,8,0]
+  },
+  {
+    pos:new THREE.Vector3(-25,SH,BD/2+1),
+    title:'First Floor Slab',
+    desc:'Reinforced concrete flat slab at 3.5m height, forming the ceiling of ground floor rooms and the floor of first floor rooms. Supported by columns and perimeter walls.',
+    icon:'📐',color:'#14b8a6',tag:'Structure',num:5,
+    camPos:[-25,12,25],camTgt:[-25,3,0]
+  },
+  {
+    pos:new THREE.Vector3(30,0.2,BD/2+3),
+    title:'Foundation & Ground Level',
+    desc:'Red laterite soil subgrade. The building rests on a reinforced concrete strip foundation with a ground floor slab at ±0.0m. Site is currently un-paved.',
+    icon:'🏗️',color:'#f59e0b',tag:'Civil Works',num:6,
+    camPos:[40,15,35],camTgt:[30,0,0]
+  },
+  {
+    pos:new THREE.Vector3(-BL/2-0.5,SH*1.2,0),
+    title:'Gable End Wall',
+    desc:'Solid masonry end wall at the short end of the building. The triangular gable above the eave line encloses the roof space and braces the structure against wind loads.',
+    icon:'🧱',color:'#ec4899',tag:'Envelope',num:7,
+    camPos:[-60,16,20],camTgt:[-BL/2,8,0]
+  },
+];
+
+// Build HTML markers
+const annContainer=document.getElementById('annotations-container');
+ANNS.forEach((a,i)=>{
+  const div=document.createElement('div');
+  div.className='ann-marker';div.id='ann-'+i;
+  div.style.setProperty('--ac',a.color);
+  div.innerHTML=`
+    <div class="ann-ring-wrap">
+      <div class="ann-ring" style="border:2px solid ${a.color};"></div>
+      <div class="ann-core" style="background:${a.color};">${a.num}</div>
+    </div>
+    <div class="ann-badge" style="border-color:${a.color}30;">${a.title}</div>
+  `;
+  div.addEventListener('click',()=>openPopup(i));
+  annContainer.appendChild(div);
+});
+
+// Popup logic
+let activeAnn=-1;
+const popup=document.getElementById('ann-popup');
+const pLine=document.getElementById('popup-line');
+const pLineEl=document.getElementById('popup-line-el');
+
+function openPopup(i){
+  if(activeAnn===i){closePopup();return;}
+  activeAnn=i;
+  const a=ANNS[i];
+  document.getElementById('popup-icon-wrap').innerHTML=a.icon;
+  document.getElementById('popup-icon-wrap').style.background=a.color+'22';
+  document.getElementById('popup-icon-wrap').style.border='1px solid '+a.color+'44';
+  document.getElementById('popup-title').innerHTML=`<span class="popup-num" style="background:${a.color}22;border:1px solid ${a.color}44;color:${a.color};">${a.num}</span>${a.title}`;
+  document.getElementById('popup-desc').textContent=a.desc;
+  const tag=document.getElementById('popup-tag');
+  tag.textContent=a.tag;tag.style.background=a.color+'18';tag.style.color=a.color;tag.style.border='1px solid '+a.color+'33';
+  const navCount=document.getElementById('popup-nav-count');
+  if(navCount)navCount.textContent=`Point ${i+1} of ${ANNS.length}`;
+
+  document.body.classList.add('popup-active');
+  document.querySelectorAll('.ann-marker').forEach((m,idx)=>m.classList.toggle('active',idx===i));
+  popup.classList.remove('hidden');
+  positionPopup(i);
+}
+
+function closePopup(){
+  activeAnn=-1;
+  popup.classList.add('hidden');
+  pLine.classList.add('hidden');
+  document.body.classList.remove('popup-active');
+  document.querySelectorAll('.ann-marker').forEach(m=>m.classList.remove('active'));
+}
+
+function nextAnnotation(e){
+  if(e)e.stopPropagation();
+  const next=(activeAnn+1)%ANNS.length;
+  focusAnnotation(next);
+}
+
+function prevAnnotation(e){
+  if(e)e.stopPropagation();
+  const prev=(activeAnn-1+ANNS.length)%ANNS.length;
+  focusAnnotation(prev);
+}
+
+function positionPopup(i){
+  const marker=document.getElementById('ann-'+i);
+  if(!marker||marker.classList.contains('hidden'))return;
+
+  // On phones and small tablets, bottom sheet CSS handles position cleanly
+  if(window.innerWidth<=768){
+    popup.style.left='';
+    popup.style.top='';
+    pLine.classList.add('hidden');
+    return;
+  }
+
+  const mr=marker.getBoundingClientRect();
+  const mx=mr.left+mr.width/2,my=mr.top+mr.height/2;
+  const pw=280,ph=210;
+  let px=mx+30,py=my-30;
+  if(px+pw>window.innerWidth-20)px=mx-pw-30;
+  if(py+ph>window.innerHeight-20)py=my-ph;
+  if(py<60)py=60;
+  popup.style.left=px+'px';popup.style.top=py+'px';
+
+  // Desktop connector line
+  pLine.classList.remove('hidden');
+  pLine.style.left='0';pLine.style.top='0';
+  pLine.style.width=window.innerWidth+'px';pLine.style.height=window.innerHeight+'px';
+  pLineEl.setAttribute('x1',mx);pLineEl.setAttribute('y1',my);
+  pLineEl.setAttribute('x2',px<mx?px+pw:px);pLineEl.setAttribute('y2',py+40);
+}
+
+function focusAnnotation(i){
+  if(window.innerWidth<=768&&sidebarOpen)closeSidebar();
+  const a=ANNS[i];
+  flyTo(a.camPos,a.camTgt,null,850);
+  setTimeout(()=>openPopup(i),500);
+}
+
+// Update marker positions every frame
+const v3=new THREE.Vector3(),v2=new THREE.Vector2();
+function updateAnnotations(){
+  const sideW=getSideW();
+  const topH=getTopH();
+  const sw=renderer.domElement.clientWidth||(window.innerWidth-sideW);
+  const sh=renderer.domElement.clientHeight||(window.innerHeight-topH);
+  const offsetX=sideW;
+  const offsetY=topH;
+
+  ANNS.forEach((a,i)=>{
+    const el=document.getElementById('ann-'+i);
+    v3.copy(a.pos);v3.project(camera);
+    // Convert NDC to screen pixels (accounting for sidebar and topbar offset)
+    const sx=(v3.x+1)/2*sw+offsetX;
+    const sy=(-v3.y+1)/2*sh+offsetY;
+    // Hide if behind camera or offscreen
+    if(v3.z>1||sx<offsetX+6||sx>window.innerWidth-6||sy<offsetY+6||sy>window.innerHeight-6){
+      el.classList.add('hidden');
+    }else{
+      el.classList.remove('hidden');
+      el.style.left=sx+'px';el.style.top=sy+'px';
+    }
+  });
+  if(activeAnn>=0)positionPopup(activeAnn);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDER LOOP
+// ═══════════════════════════════════════════════════════════════════
+function animate(){
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene,camera);
+  updateAnnotations();
+}
+animate();
+
+// ═══════════════════════════════════════════════════════════════════
+//  RESPONSIVE RESIZE & ORIENTATION
+// ═══════════════════════════════════════════════════════════════════
+function onResize(){
+  const topH=getTopH();
+  const sideW=getSideW();
+  const cW=window.innerWidth-sideW;
+  const cH=window.innerHeight-topH;
+  camera.aspect=cW/Math.max(cH,1);
+  camera.updateProjectionMatrix();
+  renderer.setSize(cW,cH);
+  renderer.domElement.style.left=sideW+'px';
+  renderer.domElement.style.top=topH+'px';
+  updateAnnotations();
+}
+window.addEventListener('resize',onResize);
+window.addEventListener('orientationchange',()=>{setTimeout(onResize,150);});
+
+// ═══════════════════════════════════════════════════════════════════
+//  CAMERA FLY-TO
+// ═══════════════════════════════════════════════════════════════════
+function flyTo(pos,tgt,id,ms=950){
+  // Auto close sidebar on mobile so model is instantly visible
+  if(window.innerWidth<=768&&sidebarOpen)closeSidebar();
+
+  const sp=camera.position.clone(),st=controls.target.clone();
+  const ep=new THREE.Vector3(...pos),et=new THREE.Vector3(...tgt);
+  const t0=performance.now();
+  (function step(now){
+    let t=Math.min((now-t0)/ms,1);t=t<.5?2*t*t:-1+(4-2*t)*t;
+    camera.position.lerpVectors(sp,ep,t);controls.target.lerpVectors(st,et,t);
+    if(t<1)requestAnimationFrame(step);
+  })(performance.now());
+
+  // update active view button in sidebar and mobile quickbar
+  document.querySelectorAll('[id^=vbtn-]').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.mq-btn-view').forEach(b=>b.classList.remove('active'));
+  if(id){
+    document.getElementById(id)?.classList.add('active');
+    const mqId=id.replace('vbtn-','mq-');
+    document.getElementById(mqId)?.classList.add('active');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RESET CAMERA
+// ═══════════════════════════════════════════════════════════════════
+function resetCamera(){
+  const icon=document.getElementById('reset-icon');
+  if(icon){
+    icon.classList.remove('spin');
+    void icon.offsetWidth;
+    icon.classList.add('spin');
+    icon.addEventListener('animationend',()=>icon.classList.remove('spin'),{once:true});
+  }
+  flyTo([65,30,80],[0,8,0],'vbtn-iso',1100);
+  closePopup();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  DISPLAY MODES
+// ═══════════════════════════════════════════════════════════════════
+let displayMode='solid';
+function setDisplay(mode){
+  displayMode=mode;
+  document.querySelectorAll('[id^=dbtn-]').forEach(b=>b.classList.remove('active'));
+  document.getElementById('dbtn-'+mode)?.classList.add('active');
+
+  // Update mobile quickbar button label
+  const mqMode=document.getElementById('mq-mode');
+  if(mqMode){
+    const labels={solid:'🟫 Solid',wireframe:'⬡ Wire',xray:'💠 X-Ray'};
+    mqMode.textContent=labels[mode]||'🎨 Mode';
+  }
+
+  allBuildingMeshes.forEach(m=>{
+    const mat=m.material;
+    if(mode==='solid'){
+      const snap=matSnapshots.get(mat);
+      if(snap){
+        mat.wireframe  =snap.wireframe;
+        mat.transparent=snap.transparent;
+        mat.opacity    =snap.opacity;
+        mat.depthWrite =snap.depthWrite;
+      } else {
+        mat.wireframe=false;mat.transparent=false;mat.opacity=1;mat.depthWrite=true;
+      }
+    }else if(mode==='wireframe'){
+      mat.wireframe=true;mat.transparent=false;mat.opacity=1;mat.depthWrite=true;
+    }else if(mode==='xray'){
+      mat.wireframe=false;mat.transparent=true;mat.opacity=0.14;mat.depthWrite=false;
+    }
+    mat.needsUpdate=true;
+  });
+  scene.background=new THREE.Color(mode==='wireframe'?0x040406:0x0c0c0e);
+  scene.fog=new THREE.FogExp2(mode==='wireframe'?0x040406:0x0c0c0e,0.0035);
+  renderer.toneMappingExposure=mode==='wireframe'?0.75:1.05;
+}
+
+function cycleDisplayMode(){
+  const modes=['solid','wireframe','xray'];
+  const nextMode=modes[(modes.indexOf(displayMode)+1)%modes.length];
+  setDisplay(nextMode);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VISIBILITY TOGGLES
+// ═══════════════════════════════════════════════════════════════════
+const groups={scaffold:sGroup,roof:rGroup};
+const groupState={scaffold:true,roof:true};
+function toggleGroup(k){
+  groupState[k]=!groupState[k];
+  groups[k].visible=groupState[k];
+  document.getElementById('tbtn-'+k)?.classList.toggle('active',groupState[k]);
+  if(k==='scaffold'){
+    document.getElementById('mq-scaffold')?.classList.toggle('active',groupState.scaffold);
+  }
+}
+let annVisible=true;
+function toggleAnnotations(){
+  annVisible=!annVisible;
+  document.getElementById('annotations-container').style.display=annVisible?'':'none';
+  if(!annVisible)closePopup();
+  document.getElementById('tbtn-annot')?.classList.toggle('active',annVisible);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MOBILE SIDEBAR
+// ═══════════════════════════════════════════════════════════════════
+let sidebarOpen=false;
+function toggleSidebar(){sidebarOpen?closeSidebar():openSidebar();}
+function openSidebar(){
+  sidebarOpen=true;
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebar-backdrop').classList.add('show');
+  document.getElementById('hamburger')?.classList.add('open');
+}
+function closeSidebar(){
+  sidebarOpen=false;
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').classList.remove('show');
+  document.getElementById('hamburger')?.classList.remove('open');
+}
+
+// Close popup on outside click
+document.getElementById('canvas-wrap').addEventListener('click',e=>{
+  if(e.target===renderer.domElement)closePopup();
+});
+
+// Initial hide of help tip after 5s
+setTimeout(()=>{const h=document.getElementById('help-tip');if(h){h.style.opacity='0';h.style.transition='opacity .8s';setTimeout(()=>h.remove(),800);}},5000);
+</script>
+</body>
+</html>
